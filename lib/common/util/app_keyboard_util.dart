@@ -1,8 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/cupertino.dart';
-import 'package:keyboard_utils_fork/keyboard_listener.dart' as k;
-import 'package:keyboard_utils_fork/keyboard_utils.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 
 class AppKeyboardUtil {
   static void hide(BuildContext context) {
@@ -19,17 +18,16 @@ class AppKeyboardUtil {
 }
 
 mixin KeyboardDetector<T extends StatefulWidget> on State<T> {
-  final keyboardUtils = KeyboardUtils();
-  int? subscribingId;
+  StreamSubscription<bool>? _keyboardSubscription;
   bool isKeyboardOn = false;
   final bool useDefaultKeyboardDetectorInit = true;
 
   @override
   void initState() {
+    super.initState();
     if (useDefaultKeyboardDetectorInit) {
       initKeyboardDetector();
     }
-    super.initState();
   }
 
   @override
@@ -38,27 +36,30 @@ mixin KeyboardDetector<T extends StatefulWidget> on State<T> {
     super.dispose();
   }
 
-  initKeyboardDetector(
-      {final Function(double)? willShowKeyboard, final Function()? willHideKeyboard}) {
-    subscribingId = keyboardUtils.add(
-        listener: k.KeyboardListener(willHideKeyboard: () {
-      if (willHideKeyboard != null) {
-        willHideKeyboard();
-      }
+  void initKeyboardDetector({
+    Function(double)? willShowKeyboard,
+    Function()? willHideKeyboard,
+  }) {
+    var keyboardVisibilityController = KeyboardVisibilityController();
+
+    _keyboardSubscription = keyboardVisibilityController.onChange.listen((bool visible) {
       setState(() {
-        isKeyboardOn = false;
+        isKeyboardOn = visible;
       });
-    }, willShowKeyboard: (value) {
-      if (willShowKeyboard != null) {
-        willShowKeyboard(value);
+
+      if (visible) {
+        if (willShowKeyboard != null) {
+          willShowKeyboard(0.0);
+        }
+      } else {
+        if (willHideKeyboard != null) {
+          willHideKeyboard();
+        }
       }
-      setState(() {
-        isKeyboardOn = true;
-      });
-    }));
+    });
   }
 
-  disposeKeyboardDetector() {
-    keyboardUtils.unsubscribeListener(subscribingId: subscribingId);
+  void disposeKeyboardDetector() {
+    _keyboardSubscription?.cancel();
   }
 }
